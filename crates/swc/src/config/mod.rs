@@ -2,14 +2,14 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
-    env, fmt,
+    env, fmt, fs, io,
     path::{Path, PathBuf},
     rc::Rc as RustRc,
     sync::Arc,
     usize,
 };
 
-use anyhow::{bail, Error};
+use anyhow::{bail, Context as _, Error};
 use dashmap::DashMap;
 use either::Either;
 use indexmap::IndexMap;
@@ -680,6 +680,21 @@ const fn default_swcrc() -> bool {
 pub enum ConfigFile {
     Bool(bool),
     Str(String),
+}
+
+impl ConfigFile {
+    pub fn from_path<P>(path: P) -> anyhow::Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref();
+        let f = fs::File::open(path)
+            .with_context(|| format!("Failed to open config file '{}'", path.display()))?;
+        let reader = io::BufReader::new(f);
+        let config_file = serde_json::from_reader(reader)
+            .with_context(|| format!("Failed to parse config file '{}'", path.display()))?;
+        Ok(config_file)
+    }
 }
 
 impl Default for ConfigFile {
